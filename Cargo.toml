@@ -1,0 +1,20 @@
+[package]
+name = "stow-age"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+azure_identity = "0.20.0"
+azure_storage_blobs = "0.20.0"
+azure_storage = "0.20.0"
+azure_core = "0.20.0"
+futures = "0.3.30"
+serde_json = "1.0.118"
+colored_json = "5.0.0"
+jsonxf = "1.1"
+serde = "1.0.204"
+time = "0.3.36"
+opener = "0.7.1"
+open = "5.3.0"
+clap = { version = "4.5.9", features = ["derive", "env"] }
