@@ -157,6 +157,8 @@ fn get_storage_access_key(name: &str) -> Result<String> {
 }
 
 async fn process_blob(blob_container_client: &ContainerClient, blob_name: &str) -> Result<()> {
+
+    let file_name = blob_name.split("/").last().unwrap_or("unknown");
     // Retrieve the blob
     let blob_content = get_blob(blob_container_client, blob_name).await
         .map_err(|err| format!("Error retrieving blob: {}", err))?;
@@ -166,11 +168,11 @@ async fn process_blob(blob_container_client: &ContainerClient, blob_name: &str) 
         .map_err(|err| format!("Invalid UTF-8 sequence: {}", err))?;
     
     // Write the content to a file
-    let mut file = File::create("foo2.json")?;
+    let mut file = File::create(file_name)?;
     file.write_all(blob_content_str.as_bytes())?;
 
     // Open the file
-    opener::open(Path::new("foo.json"))
+    opener::open(Path::new(file_name))
         .map_err(|err| format!("Error opening file: {}", err))?;
     
     Ok(())
