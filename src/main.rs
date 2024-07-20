@@ -44,13 +44,19 @@ type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 async fn main() -> Result<()> {
 
     let args = Args::parse();
-    
-    let access_key =
-        args.storage_account_key
-        .or_else(|| get_storage_access_key(&args.storage_account).ok())
-        .ok_or("Storage account key not found")?;
 
-    let storage_credentials = StorageCredentials::access_key(&args.storage_account, access_key);
+    let credential = azure_identity::create_credential()?;
+
+    let storage_credentials = StorageCredentials::token_credential(credential);
+    
+    // ******************************
+    // let access_key =
+    //     args.storage_account_key
+    //     .or_else(|| get_storage_access_key(&args.storage_account).ok())
+    //     .ok_or("Storage account key not found")?;
+
+    // let storage_credentials = StorageCredentials::access_key(&args.storage_account, access_key);
+   // ******************************
     
     let blob_container_client = 
         ClientBuilder::new(&args.storage_account, storage_credentials)
@@ -147,12 +153,12 @@ fn get_storage_access_key(name: &str) -> Result<String> {
             .expect("failed to execute process")
     };
 
-    let response = output.stdout;
-    
-    let xx = str::from_utf8(&response)?;
-    let p: Vec<StorageAccountKey> = serde_json::from_str(xx)?;
-   // println!("{:?}", p[0].value);
-    Ok(p[0].value.clone())
+    let response = str::from_utf8(&output.stdout)?;
+    let keys: Vec<StorageAccountKey> = serde_json::from_str(response)?;
+
+    keys.first()
+        .map(|key| key.value.clone())
+        .ok_or_else(|| "Storage account keys not found".into())
     
 }
 
