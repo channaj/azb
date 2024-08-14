@@ -11,6 +11,7 @@ use std::path::Path;
 use std::str;
 use std::time::Duration;
 use time::OffsetDateTime;
+use std::env::current_exe;
 
 #[derive(Serialize, Deserialize)]
 struct StorageAccountKey {
@@ -64,11 +65,11 @@ async fn main() -> Result<()> {
 
     let blob_container_client = ClientBuilder::new(&args.storage_account, storage_credentials)
         .container_client(&args.container);
-    let latest_blob = get_latest_blob(&blob_container_client, args.prefix).await;
+
+    let latest_blob = get_latest_blob(&blob_container_client, &args.prefix).await;
 
     if let Some(blob) = latest_blob {
         bar.set_message(format!("Downloading {}", &blob.name));
-
         let _ = process_blob(&blob_container_client, &blob.name).await;
     }
     bar.finish();
@@ -123,10 +124,11 @@ async fn get_blob(blob_container_client: &ContainerClient, blob_name: &str) -> R
     Ok(result)
 }
 
-async fn get_latest_blob(blob_container_client: &ContainerClient, prefix: String) -> Option<Blob> {
-    list_blobs(blob_container_client, prefix)
+async fn get_latest_blob(blob_container_client: &ContainerClient, prefix: &str) -> Option<Blob> {
+    list_blobs(blob_container_client, prefix.into())
         .await
         .map(|items| {
+            // println!("{}{:?}", prefix, items);
             let mut blobs: Vec<Blob> = items.into_iter().filter_map(make_blob).collect();
 
             blobs.sort_by(|a, b| b.last_updated.cmp(&a.last_updated));
@@ -152,8 +154,16 @@ async fn process_blob(blob_container_client: &ContainerClient, blob_name: &str) 
     let blob_content_str = std::str::from_utf8(&blob_content)
         .map_err(|err| format!("Invalid UTF-8 sequence: {}", err))?;
 
-    // Write the content to a file
-    let mut file = File::create(file_name)?;
+    let path = current_exe()?;
+    
+    let dir = path.parent().ok_or("Could not find parent directory")?;
+    let file = dir.join("blobs").join(blob_name);
+
+    let file_dir = file.parent().ok_or("Could not find parent directory")?;
+    std::fs::create_dir_all(file_dir)?;
+
+    let mut file = File::create(file)?;
+
     file.write_all(blob_content_str.as_bytes())?;
 
     // Open the file
