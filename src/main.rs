@@ -5,13 +5,13 @@ use clap::Parser;
 use futures::stream::StreamExt;
 use indicatif::{ProgressBar, ProgressStyle};
 use serde::{Deserialize, Serialize};
+use std::env::current_exe;
 use std::fs::File;
 use std::io::prelude::*;
 use std::path::Path;
 use std::str;
 use std::time::Duration;
 use time::OffsetDateTime;
-use std::env::current_exe;
 
 #[derive(Serialize, Deserialize)]
 struct StorageAccountKey {
@@ -154,20 +154,37 @@ async fn process_blob(blob_container_client: &ContainerClient, blob_name: &str) 
     let blob_content_str = std::str::from_utf8(&blob_content)
         .map_err(|err| format!("Invalid UTF-8 sequence: {}", err))?;
 
-    let path = current_exe()?;
-    
-    let dir = path.parent().ok_or("Could not find parent directory")?;
-    let file = dir.join("blobs").join(blob_name);
+    let current_dir = current_exe()?;
 
-    let file_dir = file.parent().ok_or("Could not find parent directory")?;
+    let dir = current_dir
+        .parent()
+        .ok_or("Could not find parent directory")?;
+
+    let file_path = dir
+        .join("blobs")
+        .join(blob_name)
+        .parent()
+        .ok_or("err")?
+        .join(file_name);
+
+    let file_dir = file_path
+        .parent()
+        .ok_or("Could not find parent directory")?;
     std::fs::create_dir_all(file_dir)?;
 
-    let mut file = File::create(file)?;
+    let mut file = File::create(file_path.clone())?;
+
+    let open_path = file_path.as_path();
 
     file.write_all(blob_content_str.as_bytes())?;
 
-    // Open the file
-    opener::open(Path::new(file_name)).map_err(|err| format!("Error opening file: {}", err))?;
+    let open_result =
+        opener::open(Path::new(open_path)).map_err(|err| format!("Error opening file: {}", err));
+
+    match open_result {
+        Ok(_) => (),
+        Err(err) => println!("Error opening file: {}", err),
+    }
 
     Ok(())
 }
