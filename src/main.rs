@@ -110,7 +110,7 @@ async fn main() -> Result<()> {
     }
     
     else if let Some(name) = args.options.name {
-        let blob_name = format! ("{}/{}.json", args.prefix, name);
+        let blob_name = format! ("{}/{}", args.prefix, name);
         bar.set_message(format!("Downloading {}", &blob_name));
         let _ = process_blob(&blob_container_client, &blob_name).await;
         bar.finish();
