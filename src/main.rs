@@ -32,10 +32,10 @@ pub struct Options {
     
     /// Name of the blob
     #[arg(long, short = 'n')]
-    name: Option<String>,
+    name: Option<String>
 
-    #[arg(long, short = 'c')]
-    clean: bool
+    // #[arg(long, short = 'C')]
+    // clean: bool
 }
 
 #[derive(Parser, Debug)]
@@ -102,12 +102,12 @@ async fn main() -> Result<()> {
         bar.finish();
     } 
 
-    else if args.options.clean {
-        bar.set_message("Cleaning the 'blobs' directory.");
-        let _ = clean();
-        bar.set_message("Done");
-        bar.finish();
-    }
+    // else if args.options.clean {
+    //     bar.set_message("Cleaning the 'blobs' directory.");
+    //     let _ = clean();
+    //     bar.set_message("Done");
+    //     bar.finish();
+    // }
     
     else if let Some(name) = args.options.name {
         let blob_name = format! ("{}/{}", args.prefix, name);
@@ -165,7 +165,7 @@ fn clean() -> Result<()> {
       remove_dir_contents(&blobs_dir)?;
       // println!("Cleaned the 'blobs' directory.");
   } else {
-      // println!("'blobs' directory does not exist.");
+      println!("'blobs' directory does not exist.");
   }
 
   Ok(())
