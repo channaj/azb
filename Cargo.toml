@@ -1,7 +1,12 @@
 [package]
-name = "stow-age"
+name = "azb"
 version = "0.1.0"
 edition = "2021"
+authors = ["Channa J"]
+license = "MIT OR Apache-2.0"
+description = "A cli tool to download and open files in Azure Blob Storage"
+repository = "https://github.com/channaj/azb"
+readme = "README.md"
 
 [dependencies]
 tokio = { version = "1", features = ["full"] }

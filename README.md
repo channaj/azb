@@ -1,2 +1,2 @@
-# stow-age
-Experimental CLI tool to view data in Azure Blob Storage
+# azb
+A cli tool to download and open files in Azure Blob Storage
