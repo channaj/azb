@@ -214,6 +214,27 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0c4b4d0bd25bd0b74681c0ad21497610ce1b7c91b1022cd21c80c6fbdd9476b0"
 
 [[package]]
+name = "azb"
+version = "0.1.0"
+dependencies = [
+ "azure_core",
+ "azure_identity",
+ "azure_storage",
+ "azure_storage_blobs",
+ "clap",
+ "colored_json",
+ "futures",
+ "indicatif",
+ "jsonxf",
+ "open",
+ "opener",
+ "serde",
+ "serde_json",
+ "time",
+ "tokio",
+]
+
+[[package]]
 name = "azure_core"
 version = "0.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1841,27 +1862,6 @@ checksum = "ce305eb0b4296696835b71df73eb912e0f1ffd2556a501fcede6e0c50349191c"
 dependencies = [
  "libc",
  "windows-sys 0.52.0",
-]
-
-[[package]]
-name = "stow-age"
-version = "0.1.0"
-dependencies = [
- "azure_core",
- "azure_identity",
- "azure_storage",
- "azure_storage_blobs",
- "clap",
- "colored_json",
- "futures",
- "indicatif",
- "jsonxf",
- "open",
- "opener",
- "serde",
- "serde_json",
- "time",
- "tokio",
 ]
 
 [[package]]

@@ -6,7 +6,7 @@ use futures::stream::StreamExt;
 use indicatif::{ProgressBar, ProgressStyle};
 use serde::{Deserialize, Serialize};
 use std::env::current_exe;
-use std::fs::File;
+use std::fs::{self, File};
 use std::io::prelude::*;
 use std::path::Path;
 use std::str;
@@ -16,6 +16,26 @@ use time::OffsetDateTime;
 #[derive(Serialize, Deserialize)]
 struct StorageAccountKey {
     value: String,
+}
+
+#[derive(Debug, clap::Args)]
+#[group(required = false, multiple = false)]
+pub struct Options {
+
+    /// List all blobs under the prefix
+    #[arg(
+      short('l'),
+      long("list"),
+      num_args(0),
+    )]
+    list: bool,
+    
+    /// Name of the blob
+    #[arg(long, short = 'n')]
+    name: Option<String>,
+
+    #[arg(long, short = 'c')]
+    clean: bool
 }
 
 #[derive(Parser, Debug)]
@@ -43,6 +63,9 @@ struct Args {
     )]
     container: String,
 
+    #[clap(flatten)]
+    options: Options,
+
     /// Prefix of the blob
     #[arg(required(true), index(1))]
     prefix: String,
@@ -61,18 +84,49 @@ async fn main() -> Result<()> {
     let bar = ProgressBar::new_spinner();
     bar.set_style(ProgressStyle::with_template("[{elapsed_precise}] {msg}").unwrap());
     bar.enable_steady_tick(Duration::from_millis(100));
-    bar.set_message("Finding the latest blob.");
 
     let blob_container_client = ClientBuilder::new(&args.storage_account, storage_credentials)
         .container_client(&args.container);
 
-    let latest_blob = get_latest_blob(&blob_container_client, &args.prefix).await;
+    if args.options.list {
+        bar.set_message("Finding blobs.");
 
-    if let Some(blob) = latest_blob {
-        bar.set_message(format!("Downloading {}", &blob.name));
-        let _ = process_blob(&blob_container_client, &blob.name).await;
+        let blobs = 
+            list_blobs(&blob_container_client, args.prefix).await?
+            .into_iter()
+            .filter_map(make_blob);
+
+        for blob in blobs {
+            println!("{} - {}", blob.name, blob.last_updated);
+        }
+        bar.finish();
+    } 
+
+    else if args.options.clean {
+        bar.set_message("Cleaning the 'blobs' directory.");
+        let _ = clean();
+        bar.set_message("Done");
+        bar.finish();
     }
-    bar.finish();
+    
+    else if let Some(name) = args.options.name {
+        let blob_name = format! ("{}/{}.json", args.prefix, name);
+        bar.set_message(format!("Downloading {}", &blob_name));
+        let _ = process_blob(&blob_container_client, &blob_name).await;
+        bar.finish();
+    }
+
+    else {
+        bar.set_message("Finding the latest blob.");
+
+        let latest_blob = get_latest_blob(&blob_container_client, &args.prefix).await;
+
+        if let Some(blob) = latest_blob {
+            bar.set_message(format!("Downloading {}", &blob.name));
+            let _ = process_blob(&blob_container_client, &blob.name).await;
+        }
+        bar.finish();
+    }
 
     Ok(())
 }
@@ -81,6 +135,40 @@ async fn main() -> Result<()> {
 struct Blob {
     name: String,
     last_updated: OffsetDateTime,
+}
+
+fn clean() -> Result<()> {
+  let current_dir = current_exe()?;
+
+  let dir = current_dir
+      .parent()
+      .ok_or("Could not find parent directory")?;
+
+  let blobs_dir = dir.join("blobs");
+
+  // Recursively clean the "blobs" directory
+  if blobs_dir.exists() && blobs_dir.is_dir() {
+      fn remove_dir_contents(dir: &Path) -> Result<()> {
+          for entry in fs::read_dir(dir)? {
+              let entry = entry?;
+              let path = entry.path();
+              if path.is_dir() {
+                  remove_dir_contents(&path)?;
+                  fs::remove_dir(&path)?;
+              } else {
+                  fs::remove_file(&path)?;
+              }
+          }
+          Ok(())
+      }
+
+      remove_dir_contents(&blobs_dir)?;
+      // println!("Cleaned the 'blobs' directory.");
+  } else {
+      // println!("'blobs' directory does not exist.");
+  }
+
+  Ok(())
 }
 
 fn make_blob(blob_item: BlobItem) -> Option<Blob> {
@@ -164,7 +252,7 @@ async fn process_blob(blob_container_client: &ContainerClient, blob_name: &str) 
         .join("blobs")
         .join(blob_name)
         .parent()
-        .ok_or("err")?
+        .ok_or("Could not find parent directory")?
         .join(file_name);
 
     let file_dir = file_path
