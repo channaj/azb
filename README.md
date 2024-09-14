@@ -1,3 +1,4 @@
+[![Rust](https://github.com/channaj/azb/actions/workflows/rust.yml/badge.svg)](https://github.com/channaj/azb/actions/workflows/rust.yml)
 # azb
 A cli tool to download files from Azure Storage Blobs and open them using the default program.
 
