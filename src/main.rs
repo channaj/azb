@@ -1,7 +1,7 @@
 use azure_storage::prelude::*;
 use azure_storage_blobs::container::operations::list_blobs::BlobItem;
 use azure_storage_blobs::prelude::*;
-use clap::Parser;
+use clap::{Parser, Subcommand};
 use futures::stream::StreamExt;
 use indicatif::{ProgressBar, ProgressStyle};
 use serde::{Deserialize, Serialize};
@@ -71,10 +71,105 @@ struct Args {
     prefix: String,
 }
 
+
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+struct StorageArgs {
+    /// Name of the storage account
+    #[arg(
+        short('s'),
+        long("storage-account"),
+        env("STORAGE_ACCOUNT"),
+        required(true)
+    )]
+    storage_account: String,
+
+    /// Storage account key
+    #[arg(short('k'), long("storage-account-key"), env("STORAGE_ACCOUNT_KEY"))]
+    storage_account_key: Option<String>,
+
+    /// Name of the blob container
+    #[arg(
+        short('c'),
+        long("container-name"),
+        env("STORAGE_CONTAINER"),
+        required(true)
+    )]
+    container: String,
+
+    /// Prefix of the blob
+    #[arg(required(true), index(1))]
+    prefix: String,
+}
+
+#[derive(Parser, Debug)]
+struct CleanArgs {
+
+    #[clap(flatten)]
+    storage: Option<StorageArgs>
+    
+}
+
+
+#[derive(Parser, Debug)]
+struct OpenArgs {
+
+    #[clap(flatten)]
+    storage: StorageArgs,
+
+    /// Name of the blob
+    #[arg(long, short = 'n')]
+    name: Option<String>
+
+}
+
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+struct App {
+    /// Name of the blob
+    #[command(subcommand)]
+    command: Option<Command>,
+}
+
+#[derive(Subcommand, Debug)]
+enum Command {
+    /// First command
+    Clean(CleanArgs),
+    List(StorageArgs),
+    Open(OpenArgs)
+}
 #[tokio::main]
 async fn main() -> Result<()> {
+    let app = App::parse();
+
+    match app.command {
+        Some(Command::Clean(args)) => {
+
+            println!("Clean");
+            
+        },
+        Some(Command::List(args)) => {
+
+            println!("list");
+
+        },
+
+        Some(Command::Open(args)) => {
+
+            println!("open");
+            
+        },
+
+        None => {
+
+            println!("****");
+            let args = Args::parse();
+
+        }
+    }
+
     let args = Args::parse();
 
     let credential = azure_identity::create_credential()?;
