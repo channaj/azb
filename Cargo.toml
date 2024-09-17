@@ -1,12 +1,12 @@
 [package]
 name = "azb"
-version = "0.1.2"
+version = "1.0.0"
 edition = "2021"
 authors = ["Channa J"]
 license = "MIT OR Apache-2.0"
 description = "A cli tool to download and open files in Azure Blob Storage"
 repository = "https://github.com/channaj/azb"
-readme = "README.md"
+readme = "README_cargo.md"
 
 [dependencies]
 tokio = { version = "1", features = ["full"] }
