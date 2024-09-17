@@ -7,7 +7,7 @@ license = "MIT OR Apache-2.0"
 description = "A cli tool to download and open files in Azure Blob Storage"
 repository = "https://github.com/channaj/azb"
 readme = "README_cargo.md"
-keywords = ["azure", "storage", "blob", "cli", "download", "open"]
+keywords = ["azure", "storage", "blob", "cli", "open"]
 
 [dependencies]
 tokio = { version = "1", features = ["full"] }
