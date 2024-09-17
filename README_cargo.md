@@ -1,16 +1,7 @@
-[![Rust](https://github.com/channaj/azb/actions/workflows/rust.yml/badge.svg)](https://github.com/channaj/azb/actions/workflows/rust.yml)
 # azb
 A cli tool to download files from Azure Storage Blobs and open them using the default program.
 
 Uses default azure credentials to access Azure Storage. Alternatively, storage account key can be used.
-
-## Install
-
-The best way to install this tool is by using `cargo`
-
-```
-cargo install azb
-```
 
 ## Usage
 
@@ -21,6 +12,7 @@ Both `STORAGE_ACCOUNT` and `STORAGE_CONTAINER` can also be read from environment
 If you choose to use storage account key instead of default Azure credentials, the value can be set using `STORAGE_ACCOUNT_KEY` environment variable or `-k` option.
 
 ### Examples
+
 
 ```
 // Open the latest blob in the container under the specified prefix

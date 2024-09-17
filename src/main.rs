@@ -1,7 +1,7 @@
 use azure_storage::prelude::*;
 use azure_storage_blobs::container::operations::list_blobs::BlobItem;
 use azure_storage_blobs::prelude::*;
-use clap::Parser;
+use clap::{Parser, Subcommand};
 use futures::stream::StreamExt;
 use indicatif::{ProgressBar, ProgressStyle};
 use serde::{Deserialize, Serialize};
@@ -18,29 +18,9 @@ struct StorageAccountKey {
     value: String,
 }
 
-#[derive(Debug, clap::Args)]
-#[group(required = false, multiple = false)]
-pub struct Options {
-
-    /// List all blobs under the prefix
-    #[arg(
-      short('l'),
-      long("list"),
-      num_args(0),
-    )]
-    list: bool,
-    
-    /// Name of the blob
-    #[arg(long, short = 'n')]
-    name: Option<String>
-
-    // #[arg(long, short = 'C')]
-    // clean: bool
-}
-
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
-struct Args {
+struct StorageArgs {
     /// Name of the storage account
     #[arg(
         short('s'),
@@ -63,69 +43,113 @@ struct Args {
     )]
     container: String,
 
-    #[clap(flatten)]
-    options: Options,
-
     /// Prefix of the blob
     #[arg(required(true), index(1))]
     prefix: String,
 }
 
+#[derive(Parser, Debug)]
+struct OpenArgs {
+
+    #[clap(flatten)]
+    storage: StorageArgs,
+
+    /// Name of the blob
+    #[arg(long, short = 'n')]
+    name: Option<String>
+
+}
+
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+struct App {
+    
+    #[command(subcommand)]
+    command: Command,
+}
+
+#[derive(Subcommand, Debug)]
+enum Command {
+    /// Clean the 'blobs' directory (the default download location)
+    Clean,
+
+    /// List all blobs under the specified prefix.
+    List(StorageArgs),
+
+    /// Open a blob under the specified prefix.
+    /// Blob updated most recently will be opened if no --name argument is provided. 
+    Open(OpenArgs)
+}
 #[tokio::main]
 async fn main() -> Result<()> {
-    let args = Args::parse();
 
-    let credential = azure_identity::create_credential()?;
-
-    let storage_credentials = StorageCredentials::token_credential(credential);
+    let app = App::parse();
 
     let bar = ProgressBar::new_spinner();
     bar.set_style(ProgressStyle::with_template("[{elapsed_precise}] {msg}").unwrap());
     bar.enable_steady_tick(Duration::from_millis(100));
 
-    let blob_container_client = ClientBuilder::new(&args.storage_account, storage_credentials)
-        .container_client(&args.container);
+    let credential = azure_identity::create_credential()?;
 
-    if args.options.list {
-        bar.set_message("Finding blobs.");
+    let storage_credentials = StorageCredentials::token_credential(credential);
 
-        let blobs = 
-            list_blobs(&blob_container_client, args.prefix).await?
-            .into_iter()
-            .filter_map(make_blob);
+    match app.command {
 
-        for blob in blobs {
-            println!("{} - {}", blob.name, blob.last_updated);
-        }
-        bar.finish();
-    } 
+        Command::Clean => {
 
-    // else if args.options.clean {
-    //     bar.set_message("Cleaning the 'blobs' directory.");
-    //     let _ = clean();
-    //     bar.set_message("Done");
-    //     bar.finish();
-    // }
+          bar.set_message("Cleaning the 'blobs' directory.");
+          let _ = clean();
+          bar.set_message("Done");
+          bar.finish();
+        
+        },
+
+        Command::List(args) => {
+
+          let blob_container_client = ClientBuilder::new(&args.storage_account, storage_credentials)
+            .container_client(&args.container);
+
+          bar.set_message("Finding blobs.");
+
+          let blobs = 
+              list_blobs(&blob_container_client, args.prefix).await?
+              .into_iter()
+              .filter_map(make_blob);
+  
+          for blob in blobs {
+              println!("{} - {}", blob.name, blob.last_updated);
+          }
+          bar.finish();
+
+        },
+
+        Command::Open(args) => {
+
+          let blob_container_client = ClientBuilder::new(&args.storage.storage_account, storage_credentials)
+            .container_client(&args.storage.container);
+
+          if let Some(name) = args.name {
+
+            let blob_name = format! ("{}/{}", args.storage.prefix, name);
+            bar.set_message(format!("Downloading {}", &blob_name));
+            let _ = process_blob(&blob_container_client, &blob_name).await;
+
+          } 
+          else {
+
+            bar.set_message("Finding the latest blob.");
+            let latest_blob = get_latest_blob(&blob_container_client, &args.storage.prefix).await;
     
-    else if let Some(name) = args.options.name {
-        let blob_name = format! ("{}/{}", args.prefix, name);
-        bar.set_message(format!("Downloading {}", &blob_name));
-        let _ = process_blob(&blob_container_client, &blob_name).await;
-        bar.finish();
-    }
+            if let Some(blob) = latest_blob {
+                bar.set_message(format!("Downloading {}", &blob.name));
+                let _ = process_blob(&blob_container_client, &blob.name).await;
+            }
+          }
+          bar.finish();
 
-    else {
-        bar.set_message("Finding the latest blob.");
-
-        let latest_blob = get_latest_blob(&blob_container_client, &args.prefix).await;
-
-        if let Some(blob) = latest_blob {
-            bar.set_message(format!("Downloading {}", &blob.name));
-            let _ = process_blob(&blob_container_client, &blob.name).await;
         }
-        bar.finish();
     }
 
     Ok(())
@@ -146,7 +170,6 @@ fn clean() -> Result<()> {
 
   let blobs_dir = dir.join("blobs");
 
-  // Recursively clean the "blobs" directory
   if blobs_dir.exists() && blobs_dir.is_dir() {
       fn remove_dir_contents(dir: &Path) -> Result<()> {
           for entry in fs::read_dir(dir)? {
@@ -163,7 +186,7 @@ fn clean() -> Result<()> {
       }
 
       remove_dir_contents(&blobs_dir)?;
-      // println!("Cleaned the 'blobs' directory.");
+
   } else {
       println!("'blobs' directory does not exist.");
   }
@@ -216,7 +239,6 @@ async fn get_latest_blob(blob_container_client: &ContainerClient, prefix: &str) 
     list_blobs(blob_container_client, prefix.into())
         .await
         .map(|items| {
-            // println!("{}{:?}", prefix, items);
             let mut blobs: Vec<Blob> = items.into_iter().filter_map(make_blob).collect();
 
             blobs.sort_by(|a, b| b.last_updated.cmp(&a.last_updated));
